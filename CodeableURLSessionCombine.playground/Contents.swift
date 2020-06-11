@@ -1,56 +1,78 @@
 import Foundation
 import Combine
 
+//extension
 extension URLSession {
-
-    /// Result struct containing the processing data and url response
-    struct Result<T> {
-        let data: T
-        let response: URLResponse
+    enum SessionError: Error {
+        case statusCode(HTTPURLResponse)
     }
-
 
     /// Function that wraps the existing dataTaskPublisher method and attempts to decode the result and publish it
     /// - Parameter request: A URL request object that provides the URL, cache policy, request type, body data or body stream, and so on
     /// - Returns: Publisher that sends a URLSession.Result if the response can be decoded correctly.
-    func dataTaskPublisher<T: Decodable>(for request: URLRequest) -> AnyPublisher<URLSession.Result<T>, Error> {
+    func dataTaskPublisher<T: Decodable>(for request: URLRequest) -> AnyPublisher<T, Error> {
         return self.dataTaskPublisher(for: request)
-            .tryMap { (data, response) -> URLSession.Result<T> in
-                let data = try JSONDecoder().decode(T.self, from: data)
-                return URLSession.Result(data: data, response: response)
-            }
+            .tryMap({ (data, response) -> Data in
+                if let response = response as? HTTPURLResponse,
+                    (200..<300).contains(response.statusCode) == false {
+                    throw SessionError.statusCode(response)
+                }
+
+                return data
+            })
+            .decode(type: T.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
 
     /// Function that wraps the existing dataTaskPublisher method and attempts to decode the result and publish it
     /// - Parameter url: The URL to be retrieved.
     /// - Returns: Publisher that sends a URLSession.Result if the response can be decoded correctly.
-    func dataTaskPublisher<T: Decodable>(for url: URL) -> AnyPublisher<URLSession.Result<T>, Error> {
+    func dataTaskPublisher<T: Decodable>(for url: URL) -> AnyPublisher<T, Error> {
         return self.dataTaskPublisher(for: url)
-            .tryMap { (data, response) -> URLSession.Result<T> in
-                let data = try JSONDecoder().decode(T.self, from: data)
-                return URLSession.Result(data: data, response: response)
-            }
+            .tryMap({ (data, response) -> Data in
+                if let response = response as? HTTPURLResponse,
+                    (200..<300).contains(response.statusCode) == false {
+                    throw SessionError.statusCode(response)
+                }
+
+                return data
+            })
+            .decode(type: T.self, decoder: JSONDecoder())
             .eraseToAnyPublisher()
     }
 }
 
 /* ======================================================= */
 
-struct Post: Codable {
-    let userID, id: Int
-    let title, body: String
-
-    enum CodingKeys: String, CodingKey {
-        case userID = "userId"
-        case id, title, body
-    }
+// MARK: - User
+struct User: Codable {
+    let id: Int
+    let name, username, email: String
+    let address: Address
+    let phone, website: String
+    let company: Company
 }
 
-typealias Posts = [Post]
+// MARK: - Address
+struct Address: Codable {
+    let street, suite, city, zipcode: String
+    let geo: Geo
+}
 
-let url = URL(string: "https://jsonplaceholder.typicode.com/posts")!
-let token = (URLSession.shared.dataTaskPublisher(for: url) as AnyPublisher<URLSession.Result<Posts>, Error>)
+// MARK: - Geo
+struct Geo: Codable {
+    let lat, lng: String
+}
+
+// MARK: - Company
+struct Company: Codable {
+    let name, catchPhrase, bs: String
+}
+
+typealias Users = [User]
+
+let url = URL(string: "https://jsonplaceholder.typicode.com/users")!
+let token = URLSession.shared.dataTaskPublisher(for: url)
     .sink(receiveCompletion: { (completion) in
         switch completion {
         case .finished:
@@ -58,7 +80,7 @@ let token = (URLSession.shared.dataTaskPublisher(for: url) as AnyPublisher<URLSe
         case .failure(let error):
             print(error.localizedDescription)
         }
-    }) { (result) in
-        result.data.forEach({ print("\($0.title)\n") })
+    }) { (users: Users) in
+        users.forEach({ print("\($0.name)\n") })
     }
 

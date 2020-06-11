@@ -4,6 +4,7 @@ extension URLSession {
 
     enum SessionError: Error {
         case noData
+        case statusCode
     }
 
     /// Wraps the standard dataTask method with a JSON decode attempt using the passed generic type.
@@ -19,6 +20,11 @@ extension URLSession {
             guard error == nil else {
                 completionHandler(nil, response, error)
                 return
+            }
+
+            if let response = response as? HTTPURLResponse,
+                (200..<300).contains(response.statusCode) == false {
+                completionHandler(nil, response, SessionError.statusCode)
             }
 
             guard let data = data else {
@@ -51,6 +57,11 @@ extension URLSession {
                 return
             }
 
+            if let response = response as? HTTPURLResponse,
+                (200..<300).contains(response.statusCode) == false {
+                completionHandler(nil, response, SessionError.statusCode)
+            }
+
             guard let data = data else {
                 completionHandler(nil, response, SessionError.noData)
                 return
@@ -68,25 +79,40 @@ extension URLSession {
 
 /* ======================================================= */
 
-struct Post: Codable {
-    let userID, id: Int
-    let title, body: String
-
-    enum CodingKeys: String, CodingKey {
-        case userID = "userId"
-        case id, title, body
-    }
+// MARK: - User
+struct User: Codable {
+    let id: Int
+    let name, username, email: String
+    let address: Address
+    let phone, website: String
+    let company: Company
 }
 
-typealias Posts = [Post]
+// MARK: - Address
+struct Address: Codable {
+    let street, suite, city, zipcode: String
+    let geo: Geo
+}
 
-let url = URL(string: "https://jsonplaceholder.typicode.com/posts")!
-let task = URLSession.shared.dataTask(with: url, completionHandler: { (posts: Posts?, response, error) in
+// MARK: - Geo
+struct Geo: Codable {
+    let lat, lng: String
+}
+
+// MARK: - Company
+struct Company: Codable {
+    let name, catchPhrase, bs: String
+}
+
+typealias Users = [User]
+
+let url = URL(string: "https://jsonplaceholder.typicode.com/users")!
+let task = URLSession.shared.dataTask(with: url, completionHandler: { (users: Users?, response, error) in
     if let error = error {
         print(error.localizedDescription)
         return
     }
 
-    posts?.forEach({ print("\($0.title)\n") })
+    users?.forEach({ print("\($0.name)\n") })
 })
 task.resume()
