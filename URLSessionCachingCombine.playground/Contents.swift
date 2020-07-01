@@ -22,6 +22,24 @@ extension URLSession {
                 )).eraseToAnyPublisher()
         }.eraseToAnyPublisher()
     }
+
+    func dataTaskPublisher(for urlRequest: URLRequest,
+                           cachedResponseOnError: Bool) -> AnyPublisher<ShortOutput, Error> {
+        return self.dataTaskPublisher(for: urlRequest)
+            .tryCatch { [weak self] (error) -> AnyPublisher<ShortOutput, Never> in
+                guard cachedResponseOnError,
+                    let urlCache = self?.configuration.urlCache,
+                    let cachedResponse = urlCache.cachedResponse(for: urlRequest) else {
+
+                    throw error
+                }
+
+                return Just(ShortOutput(
+                    data: cachedResponse.data,
+                    response: cachedResponse.response
+                )).eraseToAnyPublisher()
+        }.eraseToAnyPublisher()
+    }
 }
 
 let url = URL(string: "https://postman-echo.com/response-headers?Content-Type=text/html&Cache-Control=max-age=3")!

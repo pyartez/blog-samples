@@ -47,13 +47,11 @@ extension URLSession {
     ///   - completionHandler: completionHandler to be called once the request is finished
     /// - Returns: URLSessionDataTask to manage the request
 
-    // 1
     func dataTask(with url: URL,
                   cachedResponseOnError: Bool,
                   completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
 
         return self.dataTask(with: url) { (data, response, error) in
-            // 2
             if cachedResponseOnError,
                 let error = error,
                 let cachedResponse = self.configuration.urlCache?.cachedResponse(for: URLRequest(url: url)) {
@@ -62,17 +60,22 @@ extension URLSession {
                 return
             }
 
-            // 3
             completionHandler(data, response, error)
         }
     }
 
+    /// Wraps the standard dataTask function to take an additional parameter. If cachedResponseOnError is set to true
+    /// the function will attempt to return a cached response from the URLCache in the event of a network error
+    /// - Parameters:
+    ///   - urlRequest: URLRequest to be retrieved
+    ///   - cachedResponseOnError: Whether we should attempt to load a cached response if the request fails
+    ///   - completionHandler: completionHandler to be called once the request is finished
+    /// - Returns: URLSessionDataTask to manage the request
     func dataTask(with urlRequest: URLRequest,
                   cachedResponseOnError: Bool,
                   completionHandler: @escaping (Data?, URLResponse?, Error?) -> Void) -> URLSessionDataTask {
 
         return self.dataTask(with: urlRequest) { (data, response, error) in
-            // 2
             if cachedResponseOnError,
                 let error = error,
                 let cachedResponse = self.configuration.urlCache?.cachedResponse(for: urlRequest) {
@@ -81,7 +84,6 @@ extension URLSession {
                 return
             }
 
-            // 3
             completionHandler(data, response, error)
         }
     }
